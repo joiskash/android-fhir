@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google LLC
+ * Copyright 2022 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,23 @@
 package com.google.android.fhir.datacapture.views
 
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.fhir.datacapture.displayString
+import com.google.android.fhir.datacapture.utilities.localizedString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import org.hl7.fhir.r4.model.Attachment
+import org.hl7.fhir.r4.model.BooleanType
+import org.hl7.fhir.r4.model.Coding
+import org.hl7.fhir.r4.model.DateTimeType
+import org.hl7.fhir.r4.model.DateType
+import org.hl7.fhir.r4.model.DecimalType
+import org.hl7.fhir.r4.model.IntegerType
+import org.hl7.fhir.r4.model.Quantity
 import org.hl7.fhir.r4.model.Questionnaire
 import org.hl7.fhir.r4.model.QuestionnaireResponse
+import org.hl7.fhir.r4.model.StringType
+import org.hl7.fhir.r4.model.TimeType
+import org.hl7.fhir.r4.model.UriType
 
 /**
  * Item for [QuestionnaireItemViewHolder] in [RecyclerView] containing
@@ -60,6 +73,31 @@ data class QuestionnaireItemViewItem(
     set(value) {
       questionnaireResponseItem.answer.clear()
       value?.let { questionnaireResponseItem.addAnswer(it) }
+    }
+
+  internal val answerString: String
+    get() {
+      if (!questionnaireResponseItem.hasAnswer()) return NOT_ANSWERED
+      val answerList = mutableListOf<String>()
+      questionnaireResponseItem.answer.forEach {
+        answerList.add(
+          when (it.value) {
+            is BooleanType -> it.valueBooleanType.valueAsString ?: NOT_ANSWERED
+            is StringType -> it.valueStringType.valueAsString ?: NOT_ANSWERED
+            is IntegerType -> it.valueIntegerType.valueAsString ?: NOT_ANSWERED
+            is DecimalType -> it.valueDecimalType.valueAsString ?: NOT_ANSWERED
+            is DateType -> it.valueDateType.localDate.localizedString
+            is DateTimeType -> it.valueDateTimeType.valueAsString ?: NOT_ANSWERED
+            is TimeType -> it.valueTimeType.valueAsString ?: NOT_ANSWERED
+            is Quantity -> it.valueQuantity.value.toString()
+            is UriType -> it.valueUriType?.valueAsString ?: NOT_ANSWERED
+            is Attachment -> it.valueAttachment.url ?: NOT_ANSWERED
+            is Coding -> it.displayString ?: NOT_ANSWERED
+            else -> NOT_ANSWERED
+          }
+        )
+      }
+      return answerList.joinToString()
     }
 
   internal fun addAnswer(
@@ -147,5 +185,9 @@ data class QuestionnaireItemViewItem(
   fun equalsDeep(other: QuestionnaireItemViewItem): Boolean {
     return this.questionnaireItem.equalsDeep(other.questionnaireItem) &&
       this.questionnaireResponseItem.equalsDeep(other.questionnaireResponseItem)
+  }
+
+  companion object {
+    const val NOT_ANSWERED = "Not Answered"
   }
 }

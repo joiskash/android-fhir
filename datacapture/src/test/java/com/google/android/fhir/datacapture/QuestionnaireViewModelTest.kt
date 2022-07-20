@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google LLC
+ * Copyright 2022 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import com.google.android.fhir.datacapture.QuestionnaireFragment.Companion.EXTRA
 import com.google.android.fhir.datacapture.QuestionnaireFragment.Companion.EXTRA_QUESTIONNAIRE_JSON_URI
 import com.google.android.fhir.datacapture.QuestionnaireFragment.Companion.EXTRA_QUESTIONNAIRE_RESPONSE_JSON_STRING
 import com.google.android.fhir.datacapture.QuestionnaireFragment.Companion.EXTRA_QUESTIONNAIRE_RESPONSE_JSON_URI
+import com.google.android.fhir.datacapture.QuestionnaireFragment.Companion.QUESTIONNAIRE_HAS_REVIEW_PAGE
 import com.google.android.fhir.datacapture.testing.DataCaptureTestApplication
 import com.google.common.truth.Truth.assertThat
 import java.io.File
@@ -79,7 +80,7 @@ class QuestionnaireViewModelTest(
 
     assertThat(errorMessage)
       .isEqualTo(
-        "Neither EXTRA_QUESTIONNAIRE_URI nor EXTRA_JSON_ENCODED_QUESTIONNAIRE is supplied."
+        "Neither EXTRA_QUESTIONNAIRE_JSON_URI nor EXTRA_QUESTIONNAIRE_JSON_STRING is supplied."
       )
   }
 
@@ -1426,9 +1427,84 @@ class QuestionnaireViewModelTest(
       .isEqualTo("parent-question")
   }
 
+  @Test
+  fun stateHasNoReviewFeature_shouldShowReviewButton() {
+    runBlocking {
+      val questionnaire =
+        Questionnaire().apply {
+          id = "a-questionnaire"
+          addItem(
+            Questionnaire.QuestionnaireItemComponent().apply {
+              linkId = "a-link-id"
+              type = Questionnaire.QuestionnaireItemType.BOOLEAN
+            }
+          )
+        }
+      val viewModel = createQuestionnaireViewModel(questionnaire, reviewMode = false)
+      assertThat(viewModel.showReviewButtonStateFlow.first()).isTrue()
+    }
+  }
+
+  @Test
+  fun stateHasReviewFeature_shouldNotShowReviewButton() {
+    runBlocking {
+      val questionnaire =
+        Questionnaire().apply {
+          id = "a-questionnaire"
+          addItem(
+            Questionnaire.QuestionnaireItemComponent().apply {
+              linkId = "a-link-id"
+              type = Questionnaire.QuestionnaireItemType.BOOLEAN
+            }
+          )
+        }
+      val viewModel = createQuestionnaireViewModel(questionnaire, reviewMode = true)
+      assertThat(viewModel.showReviewButtonStateFlow.first()).isFalse()
+    }
+  }
+
+  @Test
+  fun reviewModeStateToggleToFalse_shouldEmitReviewModeStateFlowAsFalse() {
+    runBlocking {
+      val questionnaire =
+        Questionnaire().apply {
+          id = "a-questionnaire"
+          addItem(
+            Questionnaire.QuestionnaireItemComponent().apply {
+              linkId = "a-link-id"
+              type = Questionnaire.QuestionnaireItemType.BOOLEAN
+            }
+          )
+        }
+      val viewModel = createQuestionnaireViewModel(questionnaire)
+      viewModel.setReviewMode(false)
+      assertThat(viewModel.reviewModeStateFlow.first()).isFalse()
+    }
+  }
+
+  @Test
+  fun reviewModeStateToggleToTrue_shouldEmitReviewModeStateFlowAsTrue() {
+    runBlocking {
+      val questionnaire =
+        Questionnaire().apply {
+          id = "a-questionnaire"
+          addItem(
+            Questionnaire.QuestionnaireItemComponent().apply {
+              linkId = "a-link-id"
+              type = Questionnaire.QuestionnaireItemType.BOOLEAN
+            }
+          )
+        }
+      val viewModel = createQuestionnaireViewModel(questionnaire)
+      viewModel.setReviewMode(true)
+      assertThat(viewModel.reviewModeStateFlow.first()).isTrue()
+    }
+  }
+
   private fun createQuestionnaireViewModel(
     questionnaire: Questionnaire,
-    questionnaireResponse: QuestionnaireResponse? = null
+    questionnaireResponse: QuestionnaireResponse? = null,
+    reviewMode: Boolean = false
   ): QuestionnaireViewModel {
     if (questionnaireSource == QuestionnaireSource.STRING) {
       state.set(EXTRA_QUESTIONNAIRE_JSON_STRING, printer.encodeResourceToString(questionnaire))
@@ -1460,7 +1536,7 @@ class QuestionnaireViewModelTest(
           .registerInputStream(questionnaireResponseUri, questionnaireResponseFile.inputStream())
       }
     }
-
+    reviewMode.let { state.set(QUESTIONNAIRE_HAS_REVIEW_PAGE, it) }
     return QuestionnaireViewModel(context, state)
   }
 

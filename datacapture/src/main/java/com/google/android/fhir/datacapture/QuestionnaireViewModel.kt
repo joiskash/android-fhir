@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google LLC
+ * Copyright 2022 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,8 +30,11 @@ import com.google.android.fhir.datacapture.views.QuestionnaireItemViewItem
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import org.hl7.fhir.r4.model.CodeableConcept
 import org.hl7.fhir.r4.model.Coding
 import org.hl7.fhir.r4.model.Questionnaire
@@ -54,8 +57,8 @@ internal class QuestionnaireViewModel(application: Application, state: SavedStat
         state.contains(QuestionnaireFragment.EXTRA_QUESTIONNAIRE_JSON_URI) -> {
           if (state.contains(QuestionnaireFragment.EXTRA_QUESTIONNAIRE_JSON_STRING)) {
             Timber.w(
-              "Both EXTRA_QUESTIONNAIRE_URI & EXTRA_JSON_ENCODED_QUESTIONNAIRE are provided. " +
-                "EXTRA_QUESTIONNAIRE_URI takes precedence."
+              "Both EXTRA_QUESTIONNAIRE_JSON_URI & EXTRA_QUESTIONNAIRE_JSON_STRING are provided. " +
+                "EXTRA_QUESTIONNAIRE_JSON_URI takes precedence."
             )
           }
           val uri: Uri = state[QuestionnaireFragment.EXTRA_QUESTIONNAIRE_JSON_URI]!!
@@ -67,7 +70,9 @@ internal class QuestionnaireViewModel(application: Application, state: SavedStat
           parser.parseResource(questionnaireJson) as Questionnaire
         }
         else ->
-          error("Neither EXTRA_QUESTIONNAIRE_URI nor EXTRA_JSON_ENCODED_QUESTIONNAIRE is supplied.")
+          error(
+            "Neither EXTRA_QUESTIONNAIRE_JSON_URI nor EXTRA_QUESTIONNAIRE_JSON_STRING is supplied."
+          )
       }
   }
 
@@ -110,6 +115,21 @@ internal class QuestionnaireViewModel(application: Application, state: SavedStat
     }
   }
 
+  /** Flag to support fragment for review-feature */
+  private val hasReviewPage: Boolean
+
+  init {
+    hasReviewPage = state[QuestionnaireFragment.QUESTIONNAIRE_HAS_REVIEW_PAGE] ?: false
+  }
+
+  /** Flag to open fragment in data-collection or review-mode */
+  private val entryByReviewPage: Boolean
+
+  init {
+    entryByReviewPage =
+      hasReviewPage && state[QuestionnaireFragment.QUESTIONNAIRE_ENTRY_BY_REVIEW_PAGE] ?: false
+  }
+
   /** Map from link IDs to questionnaire response items. */
   private val linkIdToQuestionnaireResponseItemMap =
     createLinkIdToQuestionnaireResponseItemMap(questionnaireResponse.item)
@@ -119,6 +139,12 @@ internal class QuestionnaireViewModel(application: Application, state: SavedStat
 
   /** Tracks modifications in order to update the UI. */
   private val modificationCount = MutableStateFlow(0)
+
+  /** Toggles review mode. */
+  private val reviewFlow = MutableStateFlow(entryByReviewPage)
+
+  /** Flag to show/hide submit button. */
+  private var showSubmitButtonFlag = false
 
   /**
    * Callback function to update the UI which takes the linkId of the question whose answer(s) has
@@ -137,7 +163,7 @@ internal class QuestionnaireViewModel(application: Application, state: SavedStat
         }
       }
     }
-    modificationCount.value += 1
+    modificationCount.update { it + 1 }
   }
 
   private val pageFlow = MutableStateFlow(questionnaire.getInitialPagination())
@@ -163,15 +189,58 @@ internal class QuestionnaireViewModel(application: Application, state: SavedStat
     pageFlow.value = pageFlow.value!!.nextPage()
   }
 
+  internal fun setReviewMode(reviewModeFlag: Boolean) {
+    reviewFlow.value = reviewModeFlag
+
+    // When Fragment enters into review mode pageflow is initially set
+    // to null, so when toggled into data collection mode pageflow is
+    // implicitly set with getInitialPagination.
+    if (pageFlow.value == null) pageFlow.value = questionnaire.getInitialPagination()
+  }
+
+  internal fun setShowSubmitButtonFlag(showSubmitButton: Boolean) {
+    showSubmitButtonFlag = showSubmitButton
+  }
+
+  /** StateFlow whether to show review button or not */
+  internal val showReviewButtonStateFlow: StateFlow<Boolean> =
+    combine(reviewFlow, pageFlow) { reviewFlow, pagination ->
+        hasReviewPage && !reviewFlow && (pagination == null || !pagination.hasNextPage)
+      }
+      .stateIn(viewModelScope, SharingStarted.Lazily, initialValue = entryByReviewPage)
+
+  /** StateFlow whether to show submit button or not */
+  internal val showSubmitButtonStateFlow: StateFlow<Boolean> =
+    combine(reviewFlow, pageFlow) { _, pagination ->
+        showSubmitButtonFlag &&
+          !showReviewButtonStateFlow.value &&
+          (pagination == null || !pagination.hasNextPage)
+      }
+      .stateIn(viewModelScope, SharingStarted.Lazily, initialValue = showSubmitButtonFlag)
+
+  /** StateFlow to toggle UI between answer or review mode */
+  internal val reviewModeStateFlow: StateFlow<Boolean> = reviewFlow.asStateFlow()
+
   /** [QuestionnaireState] to be displayed in the UI. */
   internal val questionnaireStateFlow: Flow<QuestionnaireState> =
-    modificationCount
-      .combine(pageFlow) { _, pagination ->
-        getQuestionnaireState(
-          questionnaireItemList = questionnaire.item,
-          questionnaireResponseItemList = questionnaireResponse.item,
-          pagination = pagination,
-        )
+    combine(modificationCount, pageFlow, reviewFlow) { _, pagination, reviewFlow ->
+        if (reviewFlow) {
+          getQuestionnaireState(
+            questionnaireItemList = questionnaire.item,
+            questionnaireResponseItemList = questionnaireResponse.item,
+            pagination = null,
+            modificationCount = modificationCount.value,
+            reviewMode = reviewFlow
+          )
+        } else {
+          getQuestionnaireState(
+            questionnaireItemList = questionnaire.item,
+            questionnaireResponseItemList = questionnaireResponse.item,
+            pagination = pagination,
+            modificationCount = modificationCount.value,
+            reviewMode = reviewFlow
+          )
+        }
       }
       .stateIn(
         viewModelScope,
@@ -181,6 +250,8 @@ internal class QuestionnaireViewModel(application: Application, state: SavedStat
             questionnaireItemList = questionnaire.item,
             questionnaireResponseItemList = questionnaireResponse.item,
             pagination = questionnaire.getInitialPagination(),
+            modificationCount = 0,
+            reviewMode = hasReviewPage
           )
       )
 
@@ -264,6 +335,8 @@ internal class QuestionnaireViewModel(application: Application, state: SavedStat
     questionnaireItemList: List<Questionnaire.QuestionnaireItemComponent>,
     questionnaireResponseItemList: List<QuestionnaireResponse.QuestionnaireResponseItemComponent>,
     pagination: QuestionnairePagination?,
+    modificationCount: Int,
+    reviewMode: Boolean
   ): QuestionnaireState {
     // TODO(kmost): validate pages before switching between next/prev pages
     var responseIndex = 0
@@ -324,11 +397,18 @@ internal class QuestionnaireViewModel(application: Application, state: SavedStat
                   },
                 // we're now dealing with nested items, so pagination is no longer a concern
                 pagination = null,
+                modificationCount = modificationCount,
+                reviewMode = reviewMode
               )
               .items
         }
         .toList()
-    return QuestionnaireState(items = items, pagination = pagination)
+    return QuestionnaireState(
+      items = items,
+      pagination = pagination,
+      modificationCount = modificationCount,
+      reviewMode = reviewMode
+    )
   }
 
   private fun getEnabledResponseItems(
@@ -372,7 +452,8 @@ internal class QuestionnaireViewModel(application: Application, state: SavedStat
           (extension.value as? CodeableConcept)?.coding?.any { coding -> coding.code == "page" } ==
             true
         }
-      }
+      } && !reviewFlow.value
+
     return if (usesPagination) {
       QuestionnairePagination(
         currentPageIndex = 0,
@@ -390,6 +471,10 @@ internal data class QuestionnaireState(
   val items: List<QuestionnaireItemViewItem>,
   /** The pagination state of the questionnaire. If `null`, the questionnaire is not paginated. */
   val pagination: QuestionnairePagination?,
+  /** Tracks modifications in order to update the UI. */
+  val modificationCount: Int,
+  /** Tracks reviewMode in order to update the UI. */
+  val reviewMode: Boolean,
 )
 
 internal data class QuestionnairePagination(

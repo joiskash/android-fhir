@@ -19,7 +19,6 @@ package com.google.android.fhir.demo
 import android.os.Bundle
 import android.view.MenuItem
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
@@ -28,10 +27,6 @@ import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
 import com.google.android.fhir.SyncStrategyTypes
 import com.google.android.fhir.demo.databinding.ActivityMainBinding
-import com.google.android.fhir.sync.State
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.launch
-import timber.log.Timber
 
 const val MAX_RESOURCE_COUNT = 20
 

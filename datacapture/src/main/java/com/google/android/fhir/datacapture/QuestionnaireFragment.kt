@@ -23,7 +23,6 @@ import android.view.ViewGroup
 import android.widget.Button
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.content.res.use
-import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResult
 import androidx.fragment.app.viewModels
@@ -66,39 +65,59 @@ open class QuestionnaireFragment : Fragment() {
       setFragmentResult(SUBMIT_REQUEST_KEY, Bundle.EMPTY)
     }
     val adapter = QuestionnaireItemAdapter(getCustomQuestionnaireItemViewHolderFactoryMatchers())
+    val reviewPageItemAdapter = QuestionnaireReviewPageItemAdapter()
+
     val submitButton = requireView().findViewById<Button>(R.id.submit_questionnaire)
     // Reads submit button visibility value initially defined in
     // [R.attr.submitButtonStyleQuestionnaire] style.
     val submitButtonVisibilityInStyle = submitButton.visibility
+    viewModel.setShowSubmitButtonFlag(submitButtonVisibilityInStyle == View.VISIBLE)
 
-    recyclerView.adapter = adapter
+    val reviewModeEditButton = view.findViewById<View>(R.id.review_mode_edit_button)
+    reviewModeEditButton.setOnClickListener { viewModel.setReviewMode(false) }
+
+    val reviewModeButton = view.findViewById<View>(R.id.review_mode_button)
+    reviewModeButton.setOnClickListener { viewModel.setReviewMode(true) }
+
     recyclerView.layoutManager = LinearLayoutManager(view.context)
     // Listen to updates from the view model.
     viewLifecycleOwner.lifecycleScope.launchWhenCreated {
       viewModel.questionnaireStateFlow.collect { state ->
-        adapter.submitList(state.items)
+        if (state.reviewMode) {
+          reviewPageItemAdapter.submitList(state.items)
+          reviewModeEditButton.visibility = View.VISIBLE
+        } else {
+          adapter.submitList(state.items)
+          reviewModeEditButton.visibility = View.GONE
+        }
+
         if (state.pagination != null) {
           paginationPreviousButton.visibility = View.VISIBLE
           paginationPreviousButton.isEnabled = state.pagination.hasPreviousPage
           paginationNextButton.visibility = View.VISIBLE
           paginationNextButton.isEnabled = state.pagination.hasNextPage
-          if (!state.pagination.hasNextPage && submitButtonVisibilityInStyle == View.VISIBLE) {
-            paginationNextButton.visibility = View.GONE
-            submitButton.visibility = View.VISIBLE
-          } else {
-            submitButton.visibility = View.GONE
-          }
         } else {
           paginationPreviousButton.visibility = View.GONE
           paginationNextButton.visibility = View.GONE
-          if (submitButtonVisibilityInStyle == View.VISIBLE) {
-            recyclerView.updatePadding(
-              bottom = resources.getDimensionPixelOffset(R.dimen.recyclerview_bottom_padding)
-            )
-          } else {
-            recyclerView.updatePadding(bottom = 0)
-          }
         }
+      }
+    }
+
+    viewLifecycleOwner.lifecycleScope.launchWhenCreated {
+      viewModel.reviewModeStateFlow.collect { reviewMode ->
+        recyclerView.adapter = if (reviewMode) reviewPageItemAdapter else adapter
+      }
+    }
+
+    viewLifecycleOwner.lifecycleScope.launchWhenCreated {
+      viewModel.showReviewButtonStateFlow.collect { showReviewButton ->
+        reviewModeButton.visibility = if (showReviewButton) View.VISIBLE else View.GONE
+      }
+    }
+
+    viewLifecycleOwner.lifecycleScope.launchWhenCreated {
+      viewModel.showSubmitButtonStateFlow.collect { showSubmitButton ->
+        submitButton.visibility = if (showSubmitButton) View.VISIBLE else View.GONE
       }
     }
   }
@@ -155,6 +174,12 @@ open class QuestionnaireFragment : Fragment() {
      * precedence.
      */
     const val EXTRA_QUESTIONNAIRE_RESPONSE_JSON_URI = "questionnaire-response-uri"
+
+    /** A boolean flag to have a review page at the end of the questionnaire. */
+    const val QUESTIONNAIRE_HAS_REVIEW_PAGE = "questionnaire-has-review-page"
+
+    /** A boolean flag to open review page as the entry point of the questionnaire. */
+    const val QUESTIONNAIRE_ENTRY_BY_REVIEW_PAGE = "questionnaire-entry-review-page"
 
     const val SUBMIT_REQUEST_KEY = "submit-request-key"
   }
