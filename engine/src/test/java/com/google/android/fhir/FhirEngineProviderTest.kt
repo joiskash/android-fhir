@@ -116,7 +116,7 @@ class FhirEngineProviderTest {
       )
     with(config.serverConfiguration!!.networkConfiguration) {
       assertThat(this.httpCache?.maxSize).isEqualTo(50L * 1024L * 1024L)
-      assertThat(this.httpCache?.cacheDir).isEqualTo("sample-dir${File.separator}httpcache")
+      assertThat(this.httpCache?.cacheDir).isEqualTo("sample-dir${File.separator}http_cache")
     }
   }
 }
