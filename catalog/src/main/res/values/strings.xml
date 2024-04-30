@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Structured Data Capture Catalog</string>
     <string name="submit_button_text">Submit</string>
     <string name="component_nav_heading">Components</string>
@@ -80,4 +80,5 @@
     <string name="widgets">Widgets</string>
     <string name="misc_components">Miscellaneous components</string>
     <string name="open_questionnaire">Open questionnaire</string>
+    <string name="component_name_password_widget">Password widget</string>
 </resources>

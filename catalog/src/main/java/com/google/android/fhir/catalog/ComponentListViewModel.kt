@@ -152,6 +152,11 @@ class ComponentListViewModel(application: Application, private val state: SavedS
       R.string.component_name_location_widget,
       "component_location_widget.json",
     ),
+    PASSWORD_WIDGET(
+      com.google.android.fhir.datacapture.R.drawable.baseline_password_24,
+      R.string.component_name_password_widget,
+      "component_password.json",
+    ),
   }
 
   val viewItemList =
@@ -165,6 +170,7 @@ class ComponentListViewModel(application: Application, private val state: SavedS
       ViewItem.ComponentItem(Component.OPEN_CHOICE),
       ViewItem.ComponentItem(Component.TEXT_FIELD),
       ViewItem.ComponentItem(Component.AUTO_COMPLETE),
+      ViewItem.ComponentItem(Component.PASSWORD_WIDGET),
       ViewItem.ComponentItem(Component.DATE_PICKER),
       ViewItem.ComponentItem(Component.DATE_TIME_PICKER),
       ViewItem.ComponentItem(Component.SLIDER),

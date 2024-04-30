@@ -20,11 +20,13 @@ import com.google.android.fhir.datacapture.QuestionnaireFragment
 import com.google.android.fhir.datacapture.QuestionnaireItemViewHolderFactoryMatchersProviderFactory
 import com.google.android.fhir.datacapture.contrib.views.locationwidget.LocationGpsCoordinateViewHolderFactory
 import com.google.android.fhir.datacapture.contrib.views.locationwidget.LocationWidgetViewHolderFactory
+import com.google.android.fhir.datacapture.contrib.views.locationwidget.PasswordViewHolderFactory
 
 object ContribQuestionnaireItemViewHolderFactoryMatchersProviderFactory :
   QuestionnaireItemViewHolderFactoryMatchersProviderFactory {
 
   const val LOCATION_WIDGET_PROVIDER = "location-widget-provider"
+  const val PASSWORD_WIDGET_PROVIDER = "password-widget-provider"
 
   override fun get(
     provider: String,
@@ -42,6 +44,10 @@ object ContribQuestionnaireItemViewHolderFactoryMatchersProviderFactory :
               QuestionnaireFragment.QuestionnaireItemViewHolderFactoryMatcher(
                 factory = LocationWidgetViewHolderFactory,
                 matches = LocationWidgetViewHolderFactory::matcher,
+              ),
+              QuestionnaireFragment.QuestionnaireItemViewHolderFactoryMatcher(
+                factory = PasswordViewHolderFactory,
+                matches = PasswordViewHolderFactory::matcher,
               ),
             )
           }
