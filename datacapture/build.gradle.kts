@@ -1,6 +1,4 @@
-import Dependencies.forceGuava
-import Dependencies.forceHapiVersion
-import Dependencies.forceJacksonVersion
+import Dependencies.removeIncompatibleDependencies
 import java.net.URL
 
 plugins {
@@ -47,7 +45,11 @@ android {
 
   configureJacocoTestOptions()
 
-  sourceSets { getByName("androidTest").apply { resources.setSrcDirs(listOf("sampledata")) } }
+  sourceSets {
+    getByName("androidTest").apply { resources.setSrcDirs(listOf("sampledata")) }
+
+    getByName("test").apply { resources.setSrcDirs(listOf("sampledata")) }
+  }
 
   testOptions { animationsDisabled = true }
   kotlin { jvmToolchain(11) }
@@ -59,9 +61,7 @@ configurations {
   all {
     exclude(module = "xpp3")
     exclude(group = "net.sf.saxon", module = "Saxon-HE")
-    forceGuava()
-    forceHapiVersion()
-    forceJacksonVersion()
+    removeIncompatibleDependencies()
   }
 }
 
@@ -69,6 +69,7 @@ dependencies {
   androidTestImplementation(Dependencies.AndroidxTest.core)
   androidTestImplementation(Dependencies.AndroidxTest.extJunit)
   androidTestImplementation(Dependencies.AndroidxTest.extJunitKtx)
+  androidTestImplementation(Dependencies.Kotlin.kotlinCoroutinesTest)
   androidTestImplementation(Dependencies.AndroidxTest.rules)
   androidTestImplementation(Dependencies.AndroidxTest.runner)
   androidTestImplementation(Dependencies.junit)
@@ -108,6 +109,16 @@ dependencies {
   testImplementation(Dependencies.mockitoKotlin)
   testImplementation(Dependencies.robolectric)
   testImplementation(Dependencies.truth)
+  testImplementation(project(":knowledge")) {
+    exclude(group = Dependencies.androidFhirGroup, module = Dependencies.androidFhirEngineModule)
+  }
+
+  constraints {
+    Dependencies.hapiFhirConstraints().forEach { (libName, constraints) ->
+      api(libName, constraints)
+      implementation(libName, constraints)
+    }
+  }
 }
 
 tasks.dokkaHtml.configure {
