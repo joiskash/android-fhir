@@ -34,6 +34,7 @@ import com.google.android.fhir.db.impl.entities.ResourceEntity
 import com.google.android.fhir.index.ResourceIndexer
 import com.google.android.fhir.logicalId
 import com.google.android.fhir.search.SearchQuery
+import java.sql.Date
 import java.time.Instant
 import java.util.UUID
 import org.hl7.fhir.r4.model.Resource
@@ -155,6 +156,30 @@ internal class DatabaseImpl(
       }
         ?: throw ResourceNotFoundException(type.name, id)
     } as Resource
+  }
+
+  override suspend fun selectResourcesByDateRange(
+    resourceType: ResourceType,
+    startDate: Instant,
+    endDate: Instant,
+    limit: Int,
+    offset: Int
+  ): List<Resource> {
+    return db.withTransaction {
+      resourceDao.getResourcesByDateRange(resourceType, startDate, endDate, limit, offset).map {
+        iParser.parseResource(it)
+      }
+    } as List<Resource>
+  }
+
+  override suspend fun countResourcesByDateRange(
+    resourceType: ResourceType,
+    startDate: Instant,
+    endDate: Instant
+  ): Long {
+    return db.withTransaction {
+      resourceDao.getResourcesCountByDateRange(resourceType, startDate, endDate)
+    }
   }
 
   override suspend fun insertSyncedResources(resources: List<Resource>) {

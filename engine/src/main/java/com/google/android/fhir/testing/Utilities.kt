@@ -136,6 +136,24 @@ object TestFhirEngineImpl : FhirEngine {
     return Patient()
   }
 
+  override suspend fun getResourcesByDateRange(
+    resourceType: ResourceType,
+    startDate: Date,
+    endDate: Date,
+    limit: Int,
+    offset: Int
+  ): List<Resource> {
+    return emptyList()
+  }
+
+  override suspend fun getResourcesCountByDateRange(
+    resourceType: ResourceType,
+    startDate: Date,
+    endDate: Date
+  ): Long {
+    return 0L
+  }
+
   override suspend fun delete(type: ResourceType, id: String) {}
 
   override suspend fun <R : Resource> search(search: Search): List<R> {

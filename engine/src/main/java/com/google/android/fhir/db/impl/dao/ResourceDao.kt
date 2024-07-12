@@ -148,6 +148,35 @@ internal abstract class ResourceDao {
     resourceType: ResourceType
   ): ResourceEntity?
 
+  @Query(
+    """
+        SELECT serializedResource
+        FROM ResourceEntity
+        WHERE resourceType = :resourceType AND lastUpdatedRemote >= :startDate AND lastUpdatedRemote <= :endDate
+        LIMIT :limit OFFSET :offset
+    """
+  )
+  abstract suspend fun getResourcesByDateRange(
+    resourceType: ResourceType,
+    startDate: Instant,
+    endDate: Instant,
+    limit: Int = 10,
+    offset: Int = 0,
+  ): List<String>
+
+  @Query(
+    """
+        SELECT COUNT(*)
+        FROM ResourceEntity
+        WHERE resourceType = :resourceType AND lastUpdatedRemote >= :startDate AND lastUpdatedRemote <= :endDate
+    """
+  )
+  abstract suspend fun getResourcesCountByDateRange(
+    resourceType: ResourceType,
+    startDate: Instant,
+    endDate: Instant,
+  ): Long
+
   @RawQuery abstract suspend fun getResources(query: SupportSQLiteQuery): List<String>
 
   @RawQuery abstract suspend fun countResources(query: SupportSQLiteQuery): Long

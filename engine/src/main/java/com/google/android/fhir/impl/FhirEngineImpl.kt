@@ -32,6 +32,7 @@ import com.google.android.fhir.search.execute
 import com.google.android.fhir.sync.ConflictResolver
 import com.google.android.fhir.sync.Resolved
 import java.time.OffsetDateTime
+import java.util.Date
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import org.hl7.fhir.r4.model.Bundle
@@ -49,6 +50,26 @@ internal class FhirEngineImpl(private val database: Database, private val contex
 
   override suspend fun get(type: ResourceType, id: String): Resource {
     return database.select(type, id)
+  }
+
+  override suspend fun getResourcesByDateRange(
+    resourceType: ResourceType, startDate: Date, endDate: Date, limit: Int, offset: Int,
+  ): List<Resource> {
+    return database.selectResourcesByDateRange(
+      resourceType,
+      startDate.toInstant(),
+      endDate.toInstant(),
+      limit,
+      offset,
+    )
+  }
+
+  override suspend fun getResourcesCountByDateRange(
+    resourceType: ResourceType,
+    startDate: Date,
+    endDate: Date
+  ): Long {
+    return database.countResourcesByDateRange(resourceType, startDate.toInstant(), endDate.toInstant())
   }
 
   override suspend fun update(vararg resource: Resource) {

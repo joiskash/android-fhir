@@ -22,6 +22,7 @@ import com.google.android.fhir.db.impl.dao.SquashedLocalChange
 import com.google.android.fhir.search.Search
 import com.google.android.fhir.sync.ConflictResolver
 import java.time.OffsetDateTime
+import java.util.Date
 import kotlinx.coroutines.flow.Flow
 import org.hl7.fhir.r4.model.Resource
 import org.hl7.fhir.r4.model.ResourceType
@@ -37,6 +38,15 @@ interface FhirEngine {
 
   /** Loads a FHIR resource given the class and the logical ID. */
   suspend fun get(type: ResourceType, id: String): Resource
+
+  suspend fun getResourcesByDateRange(
+    resourceType: ResourceType,
+    startDate: Date,
+    endDate: Date,
+    limit: Int = 10,
+    offset: Int = 0,
+  ): List<Resource>
+  suspend fun getResourcesCountByDateRange(resourceType: ResourceType, startDate: Date, endDate: Date): Long
 
   /** Updates a FHIR [resource] in the local storage. */
   suspend fun update(vararg resource: Resource)

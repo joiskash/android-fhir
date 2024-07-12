@@ -71,6 +71,15 @@ interface Database {
   @Throws(ResourceNotFoundException::class)
   suspend fun select(type: ResourceType, id: String): Resource
 
+  suspend fun selectResourcesByDateRange(
+    resourceType: ResourceType,
+    startDate: Instant,
+    endDate: Instant,
+    limit: Int = 10,
+    offset: Int = 0,
+  ): List<Resource>
+  suspend fun countResourcesByDateRange(resourceType: ResourceType, startDate: Instant, endDate: Instant): Long
+
   /**
    * Selects the saved `ResourceEntity` of type `clazz` with `id`.
    *
